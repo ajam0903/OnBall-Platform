@@ -15,6 +15,7 @@ OnBallMobile/build/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.production
 
 # Mobile specific
 OnBallMobile/android/

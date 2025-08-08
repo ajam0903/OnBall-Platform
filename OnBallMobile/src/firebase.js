@@ -4,15 +4,13 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyCOGeIQoPX7kNVIHUipxBlJIAYissB2AqM",
-    authDomain: "bball-team-generator.firebaseapp.com",
-    projectId: "bball-team-generator",
-    storageBucket: "bball-team-generator.firebasestorage.app",
-    messagingSenderId: "698253006350",
-    appId: "1:698253006350:web:ddb9e7e799c034b61c8e5f",
-    measurementId: "G-41WKPGWFMK"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
-
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
