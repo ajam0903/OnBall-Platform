@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect } from "react";
 import { doc, getDoc, setDoc, collection, addDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "../firebase"; // Make sure to import storage from your firebase config
+import { storage } from "@shared/firebase/firebase"; // Make sure to import storage from your firebase config
 import { StyledButton, StyledInput } from "./UIComponents";
 import ReactCrop from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';

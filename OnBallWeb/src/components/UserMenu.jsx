@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import AdminNotifications from './AdminNotifications';
 import { signOut } from "firebase/auth";
-import { auth } from "../firebase";
+import { auth } from "@shared/firebase/firebase";
 import { doc, getDoc, setDoc, collection, getDocs, query, where } from "firebase/firestore";
 
 export default function UserMenu({

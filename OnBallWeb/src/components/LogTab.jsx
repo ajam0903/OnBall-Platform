@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect, useRef } from "react";
 import { collection, doc, getDoc, setDoc, query, orderBy, limit, getDocs, deleteDoc, where } from "firebase/firestore";
 import { StyledButton } from "./UIComponents";
-import { calculateAverageStatsFromSubmissions, calculateWeightedRating, RATING_WEIGHTINGS } from '../utils/ratingUtils';
+import { calculateAverageStatsFromSubmissions, calculateWeightedRating, RATING_WEIGHTINGS } from '@shared/utils/ratingUtils';
 
 export default function LogTab({
     currentLeagueId,

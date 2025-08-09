@@ -14,7 +14,7 @@ import PlayerBeltIcons from "./PlayerBeltIcons";
 import { badgeCategories } from "./badgeSystem.jsx";
 import PlayerBadges from "./playerBadges";
 import UnratedPlayersNotification from './UnratedPlayersNotification';
-import { calculatePlayerRatingFromSubmissions, calculateWeightedRating, getPercentageFromRating, RATING_WEIGHTINGS } from '../utils/ratingUtils';
+import { calculatePlayerRatingFromSubmissions, calculateWeightedRating, getPercentageFromRating, RATING_WEIGHTINGS } from '@shared/utils/ratingUtils';
 
 export default function RankingTab({
     players,

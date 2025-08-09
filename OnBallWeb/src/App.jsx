@@ -1,4 +1,4 @@
-﻿import { log, logWarn, logError } from "./utils/logger";
+﻿import { log, logWarn, logError } from "@shared/utils/logger";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
     getFirestore,
@@ -20,7 +20,7 @@ import EditPlayerModal from "./components/EditPlayerModal";
 import LeagueLandingPage from "./components/LeagueLandingPage";
 import UserMenu from "./components/UserMenu";
 import ConfirmationModal from "./components/ConfirmationModal";
-import { auth, db } from "./firebase";
+import { auth, db } from "@shared/firebase/firebase";
 import MatchResultsModal from "./components/MatchResultsModal";
 import {
     onAuthStateChanged,
@@ -29,10 +29,10 @@ import {
     GoogleAuthProvider,
     signOut,
 } from "firebase/auth";
-import ErrorBoundary from './components/ErrorBoundary';
+import ErrorBoundary from '@shared/components/ErrorBoundary';
 import LogTab from "./components/LogTab";
-import logActivity from "./utils/logActivity";
-import { ensureSchemaExists } from "./utils/schemaMigration";
+import logActivity from "@shared/utils/logActivity";
+import { ensureSchemaExists } from "@shared/utils/schemaMigration";
 import BeltsTab from "./components/BeltsTab";
 import PlayerBeltIcons from "./components/PlayerBeltIcons";
 import { calculateBeltStandings, beltCategories } from "./components/BeltsSystem";
@@ -43,7 +43,7 @@ import LeagueSelector from "./components/LeagueSelector";
 import PlayerNameMatcher from './components/PlayerNameMatcher';
 import AdminNotifications from './components/AdminNotifications';
 import PlayerCardClaimModal from './components/PlayerCardClaimModal';
-import { calculateWeightedRating, calculatePlayerRatingFromSubmissions, RATING_WEIGHTINGS } from './utils/ratingUtils';
+import { calculateAverageStatsFromSubmissions, calculateWeightedRating, RATING_WEIGHTINGS } from '@shared/utils/ratingUtils';
 
 // This helps hide the default scrollbar while maintaining scroll functionality
 const scrollbarHideStyles = `
@@ -288,28 +288,148 @@ export default function App() {
 
     const generateBalancedTeams = async () => {
         log("Starting generateBalancedTeams...");
+
         if (!currentLeagueId) {
             console.error("No currentLeagueId set");
             return;
         }
 
-        // Only show confirmation if there are actual unsaved match results
+        // Only show confirmation if there are actual unsaved match results (scores entered)
+        // AND we're not in team selection mode
         const hasUnsavedScores = scores.some(score =>
             score && (score.a || score.b) && !score.processed
         );
 
+        // Don't show modal if we're in team selection mode or if no actual scores exist
         if (hasUnsavedScores && hasGeneratedTeams) {
             setPendingTabChange('generate-teams');
             setShowUnsavedModal(true);
             return;
         }
 
-        // Use local algorithm directly (no API call)
-        await generateBalancedTeamsLocal();
+        // Replace the local algorithm call with API call
+        await generateBalancedTeamsInternal();
+    };
+
+    const generateBalancedTeamsInternal = async () => {
+        if (!currentLeagueId) {
+            console.error("No currentLeagueId set");
+            return;
+        }
+
+        try {
+            log("Starting API-based team generation...");
+            log("Players:", players.length, "active players");
+            log("Team size:", teamSize);
+
+            // Prepare player data for API (only send what's needed)
+            const activePlayersData = players
+                .filter(p => getUserPlayerPreference(p.name))
+                .map(player => ({
+                    name: player.name,
+                    scoring: player.scoring || 5,
+                    defense: player.defense || 5,
+                    rebounding: player.rebounding || 5,
+                    playmaking: player.playmaking || 5,
+                    stamina: player.stamina || 5,
+                    physicality: player.physicality || 5,
+                    xfactor: player.xfactor || 5
+                }));
+
+            // Call your protected API
+            const response = await fetch('https://simple-api-self.vercel.app/api/generate-teams', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    // Remove Authorization for now since the API doesn't handle it yet
+                    // 'Authorization': `Bearer ${await user?.getIdToken()}` 
+                },
+                body: JSON.stringify({
+                    players: activePlayersData,
+                    teamSize,
+                    leagueId: currentLeagueId,
+                    weightings: weightings
+                })
+            });
+
+            // Add response handling
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (!data.success) {
+                throw new Error(data.error || 'Failed to generate teams');
+            }
+
+            // Use the generated teams and matchups
+            const generatedTeams = data.teams;
+            const generatedMatchups = data.matchups;
+
+            log("Generated teams:", generatedTeams);
+            log("Generated matchups:", generatedMatchups);
+
+            setTeams(generatedTeams);
+            setMatchups(generatedMatchups);
+            setHasPendingMatchups(false);
+            setHasGeneratedTeams(true);
+
+            // Create MVP votes and scores arrays based on matchup count
+            const newMvpVotes = Array(generatedMatchups.length).fill("");
+            const newScores = Array(generatedMatchups.length).fill({ a: "", b: "" });
+
+            setMvpVotes(newMvpVotes);
+            setScores(newScores);
+
+            // Update Firestore
+            const docRef = doc(db, "leagues", currentLeagueId, "sets", currentSet);
+            const docSnap = await getDoc(docRef);
+
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                const firestoreData = prepareDataForFirestore({
+                    ...data,
+                    teams: generatedTeams,
+                    matchups: generatedMatchups,
+                    mvpVotes: newMvpVotes,
+                    scores: newScores,
+                    leaderboard: data.leaderboard || {}
+                });
+                await firestoreSetDoc(docRef, firestoreData);
+            }
+
+            // Log the activity
+            await logActivity(
+                db,
+                currentLeagueId,
+                "teams_generated",
+                {
+                    teamCount: generatedTeams.length,
+                    matchupCount: generatedMatchups.length,
+                    teamSize: teamSize,
+                    source: "protected_api"
+                },
+                user,
+                false
+            );
+
+        } catch (error) {
+            console.error("Error in API team generation:", error);
+
+            // Development fallback (remove in production)
+            if (process.env.NODE_ENV === 'development') {
+                console.warn("API failed, using local fallback for development");
+                return await generateBalancedTeamsLocalFallback();
+            } else {
+                alert("Team generation is temporarily unavailable. Please try again later.");
+            }
+        }
     };
 
     // Keep this for development only - remove in production
-    const generateBalancedTeamsLocal = async () => {
+    const generateBalancedTeamsLocalFallback = async () => {
         if (!currentLeagueId) {
             console.error("No currentLeagueId set");
             return;

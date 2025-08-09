@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect } from "react";
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth";
-import { auth } from "./firebase";
-import ErrorBoundary from "./components/ErrorBoundary";
+import { auth, db } from "../../shared/firebase/firebase";
+import ErrorBoundary from '../../shared/components/ErrorBoundary';
 import './App.css'
 import { takePicture, pickImage, isNativePlatform, uploadPlayerPhoto } from "./utils/capacitor";
 

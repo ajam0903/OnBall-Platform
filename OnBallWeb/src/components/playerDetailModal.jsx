@@ -1,13 +1,13 @@
 // PlayerDetailModal.jsx
-import { log, logWarn, logError } from "../utils/logger";
+import { log, logWarn, logError } from "@shared/utils/logger";
 import React, { useState, useEffect } from "react";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { getPlayerBadges, getBadgeProgress, badgeCategories, calculatePlayerStats } from "./badgeSystem.jsx";
 import Badge from "./Badge";
 import PlayerCardClaimModal from './PlayerCardClaimModal';
 import { StyledButton } from './UIComponents';
-import { calculatePlayerStatsFromHistory } from '../utils/playerStatsCalculator';
-import { calculateWeightedRating } from '../utils/ratingUtils';
+import { calculatePlayerStatsFromHistory } from '@shared/utils/playerStatsCalculator';
+import { calculateWeightedRating } from '@shared/utils/ratingUtils';
 
 function getCategoryIcon(categoryName) {
     const iconMap = {

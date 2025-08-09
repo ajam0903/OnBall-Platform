@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import { getFirestore, collection, doc, getDoc, setDoc, query, where, getDocs, deleteDoc } from "firebase/firestore";
 import { DarkContainer, StyledButton, StyledInput } from "../components/UIComponents";
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { auth } from "../firebase";
-import logActivity from "../utils/logActivity";
+import { auth } from "@shared/firebase/firebase";
+import logActivity from "@shared/utils/logActivity";
 
 const db = getFirestore();
 

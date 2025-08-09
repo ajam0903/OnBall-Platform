@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { db } from "../firebase"; // Make sure firebase.js exports your initialized db
+import { db } from "@shared/firebase/firebase"; // Make sure firebase.js exports your initialized db
 import { collection, getDocs, doc, setDoc } from "firebase/firestore";
 
 export default function TeamSetManager({ currentSet, setCurrentSet }) {

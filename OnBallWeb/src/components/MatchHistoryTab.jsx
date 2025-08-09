@@ -1,6 +1,4 @@
 import React, { useState } from "react";
-import { isPlayerMatch, nameVariations } from '../utils/nameMapping';
-import { getCanonicalName } from './utils/nameMapping';
 
 const [shareDateFilter, setShareDateFilter] = useState(new Date().toISOString().split('T')[0]);
 // Add team naming utility functions
