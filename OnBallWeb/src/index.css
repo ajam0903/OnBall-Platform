@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+body, html {
+    background-color: #111827; /* gray-900 */
+    margin: 0;
+    padding: 0;
+}
+
+/* Force dark background on all top-level elements */
+#root {
+    background-color: #111827; /* gray-900 */
+    min-height: 100vh;
+}
