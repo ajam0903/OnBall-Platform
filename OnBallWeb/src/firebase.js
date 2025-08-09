@@ -3,20 +3,17 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-console.log("Environment check:", {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID
-});
-
+// Temporary hardcoded config to bypass environment variable issues
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    apiKey: "AIzaSyADwXaCiAs1Bz_gHrSHwnzH4nYu5ogctf0",
+    authDomain: "bball-team-generator.firebaseapp.com",
+    projectId: "bball-team-generator",
+    storageBucket: "bball-team-generator.firebasestorage.app",
+    messagingSenderId: "698253006350",
+    appId: "1:698253006350:web:ddb9e7e799c034b61c8e5f",
 };
+
+console.log("Using hardcoded Firebase config with API key:", firebaseConfig.apiKey);
 
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 
