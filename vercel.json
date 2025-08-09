@@ -1,0 +1,7 @@
+{
+  "buildCommand": "cd OnBallWeb && npm run build",
+  "outputDirectory": "OnBallWeb/dist",
+  "installCommand": "cd OnBallWeb && npm install",
+  "devCommand": "cd OnBallWeb && npm run dev",
+  "framework": null
+}
