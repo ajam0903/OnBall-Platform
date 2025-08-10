@@ -116,7 +116,7 @@ export default function App() {
     const [showTournamentComplete, setShowTournamentComplete] = useState(false);
     const [currentRematchTeams, setCurrentRematchTeams] = useState(null);
     const [showProfilePhotoNotification, setShowProfilePhotoNotification] = useState(false);
-
+    const [teamGenerationMethod, setTeamGenerationMethod] = useState(null);
     const handleLogin = () => {
         const provider = new GoogleAuthProvider();
         // ADD THIS: Force account selection to avoid state issues
@@ -285,7 +285,285 @@ export default function App() {
         return totalScore / team.length;
     };
 
+    function balanceTeamsAlgorithm(players, teamSize, calculatePlayerScore) {
+        // Since React app already filters active players, use all players sent
+        const activePlayers = players;
 
+        console.log("Local generation received players:", activePlayers.length); // Debug log
+
+        if (activePlayers.length === 0) {
+            console.error("No active players found");
+            return { teams: [], matchups: [] };
+        }
+
+        // Reset isBench property for all players
+        const cleanedPlayers = activePlayers.map(player => ({
+            ...player,
+            active: true, // Ensure active is set
+            isBench: false,
+            score: calculatePlayerScore(player)
+        }));
+
+        // Shuffle players first for randomness
+        const shuffledPlayers = [...cleanedPlayers].sort(() => Math.random() - 0.5);
+
+        // Sort players by rating (highest to lowest)
+        const sortedPlayers = [...shuffledPlayers].sort(
+            (a, b) => b.score - a.score
+        );
+
+        // Calculate how many teams we can create based on active players and team size
+        const numPossibleTeams = Math.floor(activePlayers.length / teamSize);
+
+        // Create at least 2 teams, but more if we have enough players
+        // Make sure we have an even number of teams for matchups
+        const numTeams = Math.max(2, numPossibleTeams - (numPossibleTeams % 2));
+
+        // Initialize teams array
+        const teams = Array.from({ length: numTeams }, () => []);
+
+        // First phase: Distribute the top players as starters using snake draft
+        // This ensures the best players are evenly distributed as starters
+        const totalStarterPositions = numTeams * teamSize;
+        const starterPlayers = sortedPlayers.slice(0, totalStarterPositions);
+
+        for (let i = 0; i < starterPlayers.length; i++) {
+            // Determine team index using snake draft
+            const round = Math.floor(i / numTeams);
+            let teamIndex;
+
+            if (round % 2 === 0) {
+                teamIndex = i % numTeams; // Forward
+            } else {
+                teamIndex = numTeams - 1 - (i % numTeams); // Reverse
+            }
+
+            teams[teamIndex].push(starterPlayers[i]);
+        }
+
+        // Second phase: Distribute remaining players as bench players
+        const benchPlayers = sortedPlayers.slice(totalStarterPositions);
+
+        // Mark bench players
+        benchPlayers.forEach(player => {
+            player.isBench = true;
+        });
+
+        // Distribute bench players evenly, focusing on balancing team strength
+        benchPlayers.forEach(benchPlayer => {
+            // Find the team with lowest total strength
+            const teamStrengths = teams.map(team => {
+                return team.reduce((sum, player) => sum + player.score, 0);
+            });
+
+            const weakestTeamIndex = teamStrengths.indexOf(Math.min(...teamStrengths));
+            teams[weakestTeamIndex].push(benchPlayer);
+        });
+
+        // Calculate team strength considering starters and bench differently
+        const calculateTeamStrength = (team) => {
+            if (!team || team.length === 0) return 0;
+
+            // Separate starters and bench
+            const starters = team.filter(p => p && p.isBench === false);
+            const bench = team.filter(p => p && p.isBench === true);
+
+            if (starters.length === 0) return 0;
+
+            // Starters contribute 90% to team strength
+            const starterScore = starters.reduce((sum, p) => sum + p.score, 0) / starters.length;
+
+            // Bench contributes 10% to team strength
+            const benchScore = bench.length > 0
+                ? bench.reduce((sum, p) => sum + p.score, 0) / bench.length
+                : 0;
+
+            return (starterScore * 0.9) + (benchScore * 0.1);
+        };
+
+        // Optimization phase: Swap players to improve team balance
+        for (let iteration = 0; iteration < 30; iteration++) {
+            const teamStrengths = teams.map(calculateTeamStrength);
+            const avgStrength = teamStrengths.reduce((sum, str) => sum + str, 0) / teamStrengths.length;
+
+            // Calculate overall imbalance
+            const variance = teamStrengths.reduce((sum, str) => sum + Math.pow(str - avgStrength, 2), 0) / teamStrengths.length;
+            const stdDev = Math.sqrt(variance);
+
+            // If teams are already very well-balanced, stop optimizing
+            if (stdDev < 0.05) break;
+
+            // Find the strongest and weakest teams
+            const strongestTeamIdx = teamStrengths.indexOf(Math.max(...teamStrengths));
+            const weakestTeamIdx = teamStrengths.indexOf(Math.min(...teamStrengths));
+
+            if (strongestTeamIdx === weakestTeamIdx) break;
+
+            // Try to swap starters between strongest and weakest teams
+            let improved = false;
+
+            // Only swap players of the same type (starter for starter, bench for bench)
+            const strongTeamStarters = teams[strongestTeamIdx].filter(p => p && !p.isBench);
+            const weakTeamStarters = teams[weakestTeamIdx].filter(p => p && !p.isBench);
+
+            // Try every combination of starter swaps
+            for (let sIdx = 0; sIdx < strongTeamStarters.length && !improved; sIdx++) {
+                for (let wIdx = 0; wIdx < weakTeamStarters.length && !improved; wIdx++) {
+                    const sPlayerIdx = teams[strongestTeamIdx].indexOf(strongTeamStarters[sIdx]);
+                    const wPlayerIdx = teams[weakestTeamIdx].indexOf(weakTeamStarters[wIdx]);
+
+                    // Swap
+                    const temp = teams[strongestTeamIdx][sPlayerIdx];
+                    teams[strongestTeamIdx][sPlayerIdx] = teams[weakestTeamIdx][wPlayerIdx];
+                    teams[weakestTeamIdx][wPlayerIdx] = temp;
+
+                    // Evaluate
+                    const newStrengths = teams.map(calculateTeamStrength);
+                    const newAvgStrength = newStrengths.reduce((sum, str) => sum + str, 0) / newStrengths.length;
+                    const newVariance = newStrengths.reduce((sum, str) => sum + Math.pow(str - newAvgStrength, 2), 0) / newStrengths.length;
+                    const newStdDev = Math.sqrt(newVariance);
+
+                    // If improved, keep the swap
+                    if (newStdDev < stdDev) {
+                        improved = true;
+                    } else {
+                        // Undo swap
+                        const temp = teams[strongestTeamIdx][sPlayerIdx];
+                        teams[strongestTeamIdx][sPlayerIdx] = teams[weakestTeamIdx][wPlayerIdx];
+                        teams[weakestTeamIdx][wPlayerIdx] = temp;
+                    }
+                }
+            }
+
+            // If no starter swaps improved balance, try bench swaps
+            if (!improved) {
+                const strongTeamBench = teams[strongestTeamIdx].filter(p => p && p.isBench);
+                const weakTeamBench = teams[weakestTeamIdx].filter(p => p && p.isBench);
+
+                // Try every combination of bench swaps
+                for (let sIdx = 0; sIdx < strongTeamBench.length && !improved; sIdx++) {
+                    for (let wIdx = 0; wIdx < weakTeamBench.length && !improved; wIdx++) {
+                        const sPlayerIdx = teams[strongestTeamIdx].indexOf(strongTeamBench[sIdx]);
+                        const wPlayerIdx = teams[weakestTeamIdx].indexOf(weakTeamBench[wIdx]);
+
+                        // Swap
+                        const temp = teams[strongestTeamIdx][sPlayerIdx];
+                        teams[strongestTeamIdx][sPlayerIdx] = teams[weakestTeamIdx][wPlayerIdx];
+                        teams[weakestTeamIdx][wPlayerIdx] = temp;
+
+                        // Evaluate
+                        const newStrengths = teams.map(calculateTeamStrength);
+                        const newAvgStrength = newStrengths.reduce((sum, str) => sum + str, 0) / newStrengths.length;
+                        const newVariance = newStrengths.reduce((sum, str) => sum + Math.pow(str - newAvgStrength, 2), 0) / newStrengths.length;
+                        const newStdDev = Math.sqrt(newVariance);
+
+                        // If improved, keep the swap
+                        if (newStdDev < stdDev) {
+                            improved = true;
+                        } else {
+                            // Undo swap
+                            const temp = teams[strongestTeamIdx][sPlayerIdx];
+                            teams[strongestTeamIdx][sPlayerIdx] = teams[weakestTeamIdx][wPlayerIdx];
+                            teams[weakestTeamIdx][wPlayerIdx] = temp;
+                        }
+                    }
+                }
+            }
+
+            // If no improvement was possible, we're at a local optimum
+            if (!improved) break;
+        }
+
+        // Final step: Ensure the best players on each team are starters
+        // and worst players are on the bench
+        teams.forEach(team => {
+            // Sort players within each team by score
+            team.sort((a, b) => b.score - a.score);
+
+            // Mark the top teamSize players as starters, the rest as bench
+            team.forEach((player, idx) => {
+                player.isBench = idx >= teamSize;
+            });
+        });
+
+        // Create balanced matchups
+        const createBalancedMatchups = (teams, calculateTeamStrength) => {
+            // Calculate strength for each team
+            const teamsWithStrengths = teams.map(team => ({
+                team,
+                strength: calculateTeamStrength(team)
+            }));
+
+            // Sort teams by strength (highest to lowest)
+            teamsWithStrengths.sort((a, b) => b.strength - a.strength);
+
+            const matchups = [];
+
+            // For exactly 4 teams (specific case)
+            if (teamsWithStrengths.length === 4) {
+                // Calculate the total difference for all possible pairings
+                // Option 1: (0,1) (2,3) - Strongest vs 2nd strongest, 3rd vs weakest
+                const diff1 = Math.abs(teamsWithStrengths[0].strength - teamsWithStrengths[1].strength) +
+                    Math.abs(teamsWithStrengths[2].strength - teamsWithStrengths[3].strength);
+
+                // Option 2: (0,2) (1,3) - Strongest vs 3rd strongest, 2nd vs weakest
+                const diff2 = Math.abs(teamsWithStrengths[0].strength - teamsWithStrengths[2].strength) +
+                    Math.abs(teamsWithStrengths[1].strength - teamsWithStrengths[3].strength);
+
+                // Option 3: (0,3) (1,2) - Strongest vs weakest, 2nd vs 3rd
+                const diff3 = Math.abs(teamsWithStrengths[0].strength - teamsWithStrengths[3].strength) +
+                    Math.abs(teamsWithStrengths[1].strength - teamsWithStrengths[2].strength);
+
+                // Choose the option with the minimum total difference
+                if (diff1 <= diff2 && diff1 <= diff3) {
+                    // Option 1 is best
+                    matchups.push([teamsWithStrengths[0].team, teamsWithStrengths[1].team]);
+                    matchups.push([teamsWithStrengths[2].team, teamsWithStrengths[3].team]);
+                } else if (diff2 <= diff1 && diff2 <= diff3) {
+                    // Option 2 is best
+                    matchups.push([teamsWithStrengths[0].team, teamsWithStrengths[2].team]);
+                    matchups.push([teamsWithStrengths[1].team, teamsWithStrengths[3].team]);
+                } else {
+                    // Option 3 is best
+                    matchups.push([teamsWithStrengths[0].team, teamsWithStrengths[3].team]);
+                    matchups.push([teamsWithStrengths[1].team, teamsWithStrengths[2].team]);
+                }
+            } else {
+                // For other numbers of teams
+                // Take the general approach of matching teams with similar strengths
+                const availableTeams = [...teamsWithStrengths];
+
+                while (availableTeams.length >= 2) {
+                    // Take the first team
+                    const firstTeam = availableTeams.shift();
+
+                    // Find the closest strength match
+                    let bestMatchIndex = 0;
+                    let bestMatchDiff = Math.abs(firstTeam.strength - availableTeams[0].strength);
+
+                    for (let i = 1; i < availableTeams.length; i++) {
+                        const diff = Math.abs(firstTeam.strength - availableTeams[i].strength);
+                        if (diff < bestMatchDiff) {
+                            bestMatchDiff = diff;
+                            bestMatchIndex = i;
+                        }
+                    }
+
+                    const matchedTeam = availableTeams.splice(bestMatchIndex, 1)[0];
+                    matchups.push([firstTeam.team, matchedTeam.team]);
+                }
+            }
+
+            return { teams, matchups };
+        };
+
+        // Return the balanced teams and matchups
+        const result = createBalancedMatchups(teams, calculateTeamStrength);
+        return result;
+    }
+
+
+    // Updated local function that works in both development and production
     const generateBalancedTeams = async () => {
         log("Starting generateBalancedTeams...");
 
@@ -294,173 +572,38 @@ export default function App() {
             return;
         }
 
-        // Only show confirmation if there are actual unsaved match results (scores entered)
-        // AND we're not in team selection mode
         const hasUnsavedScores = scores.some(score =>
             score && (score.a || score.b) && !score.processed
         );
 
-        // Don't show modal if we're in team selection mode or if no actual scores exist
         if (hasUnsavedScores && hasGeneratedTeams) {
             setPendingTabChange('generate-teams');
             setShowUnsavedModal(true);
             return;
         }
 
-        // Replace the local algorithm call with API call
-        await generateBalancedTeamsInternal();
-    };
-
-    const generateBalancedTeamsInternal = async () => {
-        if (!currentLeagueId) {
-            console.error("No currentLeagueId set");
-            return;
-        }
-
         try {
-            log("Starting API-based team generation...");
-            log("Players:", players.length, "active players");
-            log("Team size:", teamSize);
+            log("Using local balanced team generation...");
 
-            // Prepare player data for API (only send what's needed)
-            const activePlayersData = players
-                .filter(p => getUserPlayerPreference(p.name))
-                .map(player => ({
-                    name: player.name,
-                    scoring: player.scoring || 5,
-                    defense: player.defense || 5,
-                    rebounding: player.rebounding || 5,
-                    playmaking: player.playmaking || 5,
-                    stamina: player.stamina || 5,
-                    physicality: player.physicality || 5,
-                    xfactor: player.xfactor || 5
-                }));
+            const activePlayers = players.filter(p => getUserPlayerPreference(p.name));
+            log("Active players:", activePlayers.map(p => p.name));
 
-            // Call your protected API
-            const response = await fetch('https://simple-api-self.vercel.app/api/generate-teams', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    // Remove Authorization for now since the API doesn't handle it yet
-                    // 'Authorization': `Bearer ${await user?.getIdToken()}` 
-                },
-                body: JSON.stringify({
-                    players: activePlayersData,
-                    teamSize,
-                    leagueId: currentLeagueId,
-                    weightings: weightings
-                })
-            });
-
-            // Add response handling
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            if (activePlayers.length < teamSize * 2) {
+                alert(`Need at least ${teamSize * 2} active players for ${teamSize}v${teamSize} games`);
+                return;
             }
 
-            const data = await response.json();
-
-            if (!data.success) {
-                throw new Error(data.error || 'Failed to generate teams');
-            }
-
-            // Use the generated teams and matchups
-            const generatedTeams = data.teams;
-            const generatedMatchups = data.matchups;
-
-            log("Generated teams:", generatedTeams);
-            log("Generated matchups:", generatedMatchups);
-
-            setTeams(generatedTeams);
-            setMatchups(generatedMatchups);
-            setHasPendingMatchups(false);
-            setHasGeneratedTeams(true);
-
-            // Create MVP votes and scores arrays based on matchup count
-            const newMvpVotes = Array(generatedMatchups.length).fill("");
-            const newScores = Array(generatedMatchups.length).fill({ a: "", b: "" });
-
-            setMvpVotes(newMvpVotes);
-            setScores(newScores);
-
-            // Update Firestore
-            const docRef = doc(db, "leagues", currentLeagueId, "sets", currentSet);
-            const docSnap = await getDoc(docRef);
-
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                const firestoreData = prepareDataForFirestore({
-                    ...data,
-                    teams: generatedTeams,
-                    matchups: generatedMatchups,
-                    mvpVotes: newMvpVotes,
-                    scores: newScores,
-                    leaderboard: data.leaderboard || {}
-                });
-                await firestoreSetDoc(docRef, firestoreData);
-            }
-
-            // Log the activity
-            await logActivity(
-                db,
-                currentLeagueId,
-                "teams_generated",
-                {
-                    teamCount: generatedTeams.length,
-                    matchupCount: generatedMatchups.length,
-                    teamSize: teamSize,
-                    source: "protected_api"
-                },
-                user,
-                false
-            );
-
-        } catch (error) {
-            console.error("Error in API team generation:", error);
-
-            // Development fallback (remove in production)
-            if (process.env.NODE_ENV === 'development') {
-                console.warn("API failed, using local fallback for development");
-                return await generateBalancedTeamsLocalFallback();
-            } else {
-                alert("Team generation is temporarily unavailable. Please try again later.");
-            }
-        }
-    };
-
-    // Keep this for development only - remove in production
-    const generateBalancedTeamsLocalFallback = async () => {
-        if (!currentLeagueId) {
-            console.error("No currentLeagueId set");
-            return;
-        }
-
-        // Only allow local fallback in development
-        if (process.env.NODE_ENV !== 'development') {
-            console.error("Local algorithm not available in production");
-            alert("Team generation service is unavailable. Please try again later.");
-            return;
-        }
-
-        try {
-            log("Using local fallback algorithm...");
-            log("Players:", players);
-            log("Team size:", teamSize);
-
-            // Use the imported function to generate teams and matchups
-            const result = balanceTeams(players, teamSize, calculatePlayerScore);
-            log("Balance teams result:", result);
+            // Use the algorithm function
+            const result = balanceTeamsAlgorithm(activePlayers, teamSize, calculatePlayerScore);
 
             const generatedTeams = result.teams;
             const generatedMatchups = result.matchups;
 
-            log("Generated teams:", generatedTeams);
-            log("Generated matchups:", generatedMatchups);
-
             setTeams(generatedTeams);
             setMatchups(generatedMatchups);
             setHasPendingMatchups(false);
             setHasGeneratedTeams(true);
+            setTeamGenerationMethod('balanced');
 
             // Create MVP votes and scores arrays based on matchup count
             const newMvpVotes = Array(generatedMatchups.length).fill("");
@@ -494,14 +637,17 @@ export default function App() {
                     teamCount: generatedTeams.length,
                     matchupCount: generatedMatchups.length,
                     teamSize: teamSize,
-                    source: "local_fallback"
+                    source: "local_balanced"
                 },
                 user,
                 false
             );
 
+            setToastMessage("⚖️ Balanced teams generated!");
+            setTimeout(() => setToastMessage(""), 1000);
+
         } catch (error) {
-            console.error("Error in local fallback team generation:", error);
+            console.error("Error in local balanced team generation:", error);
             alert("An error occurred while generating teams. Check the console for details.");
         }
     };
