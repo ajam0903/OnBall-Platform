@@ -32,7 +32,7 @@ import {
 import ErrorBoundary from '@shared/components/ErrorBoundary';
 import LogTab from "./components/LogTab";
 import logActivity from "./utils/logActivity";
-import { ensureSchemaExists } from "@shared/utils/schemaMigration";
+import { ensureSchemaExists } from "./utils/schemaMigration";
 import BeltsTab from "./components/BeltsTab";
 import PlayerBeltIcons from "./components/PlayerBeltIcons";
 import { calculateBeltStandings, beltCategories } from "./components/BeltsSystem";
