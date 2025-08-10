@@ -1,4 +1,5 @@
 import { doc, getDoc, setDoc, collection, query, where, getDocs, limit } from "firebase/firestore";
+import { log, logWarn, logError } from "@shared/utils/logger";
 
 /**
  * Ensures the necessary collections and documents exist in the database
@@ -48,7 +49,7 @@ export const ensureSchemaExists = async (db, leagueId) => {
     
     // Only create initialization log if it doesn't exist already
     if (initSnapshot.empty) {
-      console.log("Creating schema initialization log");
+      log("Creating schema initialization log");
       
       const testLogRef = doc(collection(db, "leagues", leagueId, "logs"));
       await setDoc(testLogRef, {
@@ -63,10 +64,10 @@ export const ensureSchemaExists = async (db, leagueId) => {
         userId: "system"
       });
     } else {
-      console.log("Schema initialization log already exists");
+      log("Schema initialization log already exists");
     }
     
-    console.log("Schema migration completed successfully");
+    log("Schema migration completed successfully");
   } catch (error) {
     console.error("Error in schema migration:", error);
   }

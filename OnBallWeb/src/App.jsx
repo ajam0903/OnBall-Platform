@@ -129,7 +129,7 @@ export default function App() {
                 console.error("Login failed:", error);
                 // ADD THIS: If popup fails, try redirect as fallback
                 if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user') {
-                    console.log('Popup blocked, trying redirect...');
+                    log('Popup blocked, trying redirect...');
                     signInWithRedirect(auth, provider);
                 }
             });
@@ -289,7 +289,7 @@ export default function App() {
         // Since React app already filters active players, use all players sent
         const activePlayers = players;
 
-        console.log("Local generation received players:", activePlayers.length); // Debug log
+        log("Local generation received players:", activePlayers.length); // Debug log
 
         if (activePlayers.length === 0) {
             console.error("No active players found");
@@ -852,28 +852,28 @@ export default function App() {
         return data;
     };
     const handleBatchPlayerActiveToggle = async (updates) => {
-        console.log("=== BATCH UPDATE DEBUG ===");
-        console.log("Received updates:", updates);
-        console.log("Current players before update:", players.map(p => ({ name: p.name, active: p.active })));
+        log("=== BATCH UPDATE DEBUG ===");
+        log("Received updates:", updates);
+        log("Current players before update:", players.map(p => ({ name: p.name, active: p.active })));
 
         // Update local state
         const updatedPlayers = players.map((player) => {
             const update = updates.find(u => u.name === player.name);
             if (update) {
-                console.log(`Updating ${player.name}: ${player.active} → ${update.active}`);
+                log(`Updating ${player.name}: ${player.active} → ${update.active}`);
                 return { ...player, active: update.active };
             }
             return player;
         });
 
-        console.log("Updated players after mapping:", updatedPlayers.map(p => ({ name: p.name, active: p.active })));
+        log("Updated players after mapping:", updatedPlayers.map(p => ({ name: p.name, active: p.active })));
 
         setPlayers(updatedPlayers);
-        console.log("Called setPlayers with updatedPlayers");
+        log("Called setPlayers with updatedPlayers");
 
         // Then save to Firestore
         if (currentLeagueId) {
-            console.log("Saving to Firestore...");
+            log("Saving to Firestore...");
             const docRef = doc(db, "leagues", currentLeagueId, "sets", currentSet);
             const docSnap = await getDoc(docRef);
             if (docSnap.exists()) {
@@ -886,10 +886,10 @@ export default function App() {
                     return player;
                 });
                 await firestoreSetDoc(docRef, { ...data, players: firestoreUpdatedPlayers });
-                console.log("Firestore update completed");
+                log("Firestore update completed");
             }
         }
-        console.log("=== END BATCH UPDATE DEBUG ===");
+        log("=== END BATCH UPDATE DEBUG ===");
     };
 
     // Updated function that will save the active state to the database
@@ -2583,8 +2583,8 @@ export default function App() {
         if (!currentLeagueId || !user) return;
 
         const fetchSet = async () => {
-            console.log("=== fetchSet START ===");
-            console.log("fetchSet running for league:", currentLeagueId, "user:", user.uid);
+            log("=== fetchSet START ===");
+            log("fetchSet running for league:", currentLeagueId, "user:", user.uid);
 
             const docRef = doc(db, "leagues", currentLeagueId, "sets", currentSet);
             const docSnap = await getDoc(docRef);
@@ -2592,7 +2592,7 @@ export default function App() {
                 const data = convertFirestoreDataToAppFormat(docSnap.data());
 
                 // ALWAYS load preferences fresh for the current league
-                console.log("Loading user preferences for current league:", currentLeagueId);
+                log("Loading user preferences for current league:", currentLeagueId);
                 let userPrefs = {};
 
                 try {
@@ -2600,14 +2600,14 @@ export default function App() {
                     const prefsDocSnap = await getDoc(prefsDocRef);
                     if (prefsDocSnap.exists()) {
                         userPrefs = prefsDocSnap.data().playerPreferences || {};
-                        console.log("Loaded fresh userPrefs from Firestore:", userPrefs);
+                        log("Loaded fresh userPrefs from Firestore:", userPrefs);
 
                         // Update state for other components
                         setUserPlayerPreferences({
                             [user.uid]: userPrefs
                         });
                     } else {
-                        console.log("No user preferences found, using empty object");
+                        log("No user preferences found, using empty object");
                         userPrefs = {};
                         setUserPlayerPreferences({
                             [user.uid]: {}
@@ -2618,7 +2618,7 @@ export default function App() {
                     userPrefs = {};
                 }
 
-                console.log("About to process", data.players?.length || 0, "players");
+                log("About to process", data.players?.length || 0, "players");
 
                 const averagedPlayers = (data.players || []).map((player) => {
                     const submissions = player.submissions || [];
@@ -2637,7 +2637,7 @@ export default function App() {
                     };
 
                     if (isActive) {
-                        console.log("Setting player", player.name, "to active");
+                        log("Setting player", player.name, "to active");
                     }
 
                     submissions.forEach((s) => {
@@ -2661,7 +2661,7 @@ export default function App() {
 
                 const enhancedPlayers = await enhancePlayersWithClaimData(averagedPlayers);
                 const finalActivePlayers = enhancedPlayers.filter(p => p.active).map(p => p.name);
-                console.log("Final active players being set:", finalActivePlayers);
+                log("Final active players being set:", finalActivePlayers);
 
                 setPlayers(enhancedPlayers);
                 setMvpVotes(data.mvpVotes || []);
@@ -2672,7 +2672,7 @@ export default function App() {
                     setTimeout(() => calculateLeaderboard(), 100);
                 }
             }
-            console.log("=== fetchSet END ===");
+            log("=== fetchSet END ===");
         };
         fetchSet();
     }, [currentLeagueId, currentSet, user]);
@@ -2819,26 +2819,26 @@ export default function App() {
 
     useEffect(() => {
         const loadUserPlayerPreferences = async () => {
-            console.log("=== loadUserPlayerPreferences START ===");
-            console.log("user:", user?.uid);
-            console.log("currentLeagueId:", currentLeagueId);
+            log("=== loadUserPlayerPreferences START ===");
+            log("user:", user?.uid);
+            log("currentLeagueId:", currentLeagueId);
 
             if (!user || !currentLeagueId) {
-                console.log("Missing user or leagueId, clearing preferences");
+                log("Missing user or leagueId, clearing preferences");
                 setUserPlayerPreferences({});
                 return;
             }
 
             try {
                 const docRef = doc(db, "leagues", currentLeagueId, "userPreferences", user.uid);
-                console.log("Fetching preferences from:", `leagues/${currentLeagueId}/userPreferences/${user.uid}`);
+                log("Fetching preferences from:", `leagues/${currentLeagueId}/userPreferences/${user.uid}`);
 
                 const docSnap = await getDoc(docRef);
                 if (docSnap.exists()) {
                     const data = docSnap.data();
                     const prefs = data.playerPreferences || {};
-                    console.log("Found preferences:", prefs);
-                    console.log("Active players from prefs:", Object.keys(prefs).filter(key => prefs[key]));
+                    log("Found preferences:", prefs);
+                    log("Active players from prefs:", Object.keys(prefs).filter(key => prefs[key]));
 
                     // Clear previous league's preferences and set only the current league's
                     setUserPlayerPreferences({
@@ -2847,17 +2847,17 @@ export default function App() {
 
                     // If we have players but they don't have the right active states, update them
                     if (players.length > 0) {
-                        console.log("Updating", players.length, "players with preferences");
+                        log("Updating", players.length, "players with preferences");
                         const updatedPlayers = players.map(player => ({
                             ...player,
                             active: prefs[player.name] || false
                         }));
                         const activePlayers = updatedPlayers.filter(p => p.active).map(p => p.name);
-                        console.log("Setting these players to active:", activePlayers);
+                        log("Setting these players to active:", activePlayers);
                         setPlayers(updatedPlayers);
                     }
                 } else {
-                    console.log("No preferences document found, initializing empty");
+                    log("No preferences document found, initializing empty");
                     // Initialize empty preferences for this user, clearing any previous data
                     setUserPlayerPreferences({
                         [user.uid]: {}
@@ -2866,7 +2866,7 @@ export default function App() {
             } catch (error) {
                 console.error("Error loading user player preferences:", error);
             }
-            console.log("=== loadUserPlayerPreferences END ===");
+            log("=== loadUserPlayerPreferences END ===");
         };
         loadUserPlayerPreferences();
     }, [user, currentLeagueId]);
@@ -3424,22 +3424,16 @@ export default function App() {
     // Function to get matches from logs for a specific date (timezone-safe)
     const getMatchLogsFromDate = (logs, targetDate) => {
         if (!logs || logs.length === 0) return [];
-
         // Parse the date string properly to avoid timezone issues
         const [year, month, day] = targetDate.split('-').map(Number);
-
-        console.log('Filtering for date:', year, month, day);
-
-        return logs.filter(log => {
-            if (!["match_result_saved", "match_completed"].includes(log.action)) return false;
-
-            const logDate = log.timestamp?.toDate ? log.timestamp.toDate() : new Date(log.timestamp);
+        log('Filtering for date:', year, month, day);
+        return logs.filter(logEntry => {  // Changed from 'log' to 'logEntry'
+            if (!["match_result_saved", "match_completed"].includes(logEntry.action)) return false;
+            const logDate = logEntry.timestamp?.toDate ? logEntry.timestamp.toDate() : new Date(logEntry.timestamp);
             const logYear = logDate.getFullYear();
             const logMonth = logDate.getMonth() + 1; // getMonth() returns 0-11, so add 1
             const logDay = logDate.getDate();
-
-            console.log('Log date:', logYear, logMonth, logDay, 'Match:', logYear === year && logMonth === month && logDay === day);
-
+            log('Log date:', logYear, logMonth, logDay, 'Match:', logYear === year && logMonth === month && logDay === day);
             return logYear === year && logMonth === month && logDay === day;
         }).sort((a, b) => {
             const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
@@ -3448,7 +3442,7 @@ export default function App() {
         });
     };
 
-    // Function to format match logs for sharing
+
     const formatMatchLogsForSharing = (matchLogs, shareDate) => {
         if (!matchLogs || matchLogs.length === 0) {
             return `No matches found for ${new Date(shareDate).toLocaleDateString()} 🏀`;
@@ -3457,7 +3451,7 @@ export default function App() {
         const dateStr = new Date(shareDate).toLocaleDateString();
         let shareText = `🏀 *${currentLeague?.name || 'Basketball'} Matches - ${dateStr}*\n\n`;
 
-        // Track player stats for biggest winner/loser
+        // Track player stats
         const playerStats = {};
 
         // First pass: collect all player stats
@@ -3503,54 +3497,95 @@ export default function App() {
             });
         });
 
-        // Find biggest winner and loser
-        let biggestWinner = null;
-        let biggestLoser = null;
-        let mostWins = 0;
-        let mostLosses = 0;
-        let mostMVPs = 0;
-        let mvpKing = null;
+        // Fixed column width
+        const columnWidth = 20;
 
-        Object.entries(playerStats).forEach(([playerName, stats]) => {
-            const totalGames = stats.wins + stats.losses;
-            if (totalGames > 0) {
-                if (stats.wins > mostWins) {
-                    mostWins = stats.wins;
-                    biggestWinner = playerName;
-                }
-                if (stats.losses > mostLosses) {
-                    mostLosses = stats.losses;
-                    biggestLoser = playerName;
-                }
-                if (stats.mvps > mostMVPs) {
-                    mostMVPs = stats.mvps;
-                    mvpKing = playerName;
-                }
+        // Helper function to truncate and pad text
+        const formatColumn = (text) => {
+            if (text.length > columnWidth) {
+                return text.substring(0, columnWidth - 3) + '...';
             }
-        });
+            return text.padEnd(columnWidth);
+        };
+
+        // Use scoring system to rank players
+        const playerScores = Object.entries(playerStats)
+            .filter(([_, stats]) => stats.wins + stats.losses > 0)
+            .map(([name, stats]) => ({
+                name,
+                wins: stats.wins,
+                losses: stats.losses,
+                mvps: stats.mvps,
+                // Scoring: 3 points for win, -1 point for loss, +1 point for MVP
+                score: (stats.wins * 3) - stats.losses + stats.mvps,
+                totalGames: stats.wins + stats.losses,
+                winRate: stats.wins / (stats.wins + stats.losses)
+            }))
+            .sort((a, b) => {
+                // Sort by score first, then by win rate as tiebreaker
+                if (a.score !== b.score) return b.score - a.score;
+                return b.winRate - a.winRate;
+            });
 
         // Add daily summary at the top
         shareText += `📊 *DAILY SUMMARY*\n`;
         shareText += `🎮 ${matchLogs.length} games played\n`;
 
-        if (biggestWinner && mostWins > 0) {
-            const winnerStats = playerStats[biggestWinner];
-            const winRate = Math.round((winnerStats.wins / (winnerStats.wins + winnerStats.losses)) * 100);
-            shareText += `🔥 *Hot Hand:* ${biggestWinner} (${mostWins}W-${winnerStats.losses}L, ${winRate}%)\n`;
+        // Best performer (highest score)
+        let playerOfTheDay = null;
+        if (playerScores.length > 0) {
+            const best = playerScores[0];
+            const hasUniqueBest = playerScores.length === 1 || best.score > playerScores[1].score;
+
+            if (hasUniqueBest) {
+                playerOfTheDay = best.name;
+                const winRateText = Math.round(best.winRate * 100);
+                shareText += `🔥 *Player of the Day:* ${best.name} (${best.wins}W-${best.losses}L, ${winRateText}%`;
+                if (best.mvps > 0) {
+                    shareText += `, ${best.mvps} MVP${best.mvps !== 1 ? 's' : ''}`;
+                }
+                shareText += `)\n`;
+            }
         }
 
-        if (biggestLoser && mostLosses > 0 && biggestLoser !== biggestWinner) {
-            const loserStats = playerStats[biggestLoser];
-            shareText += `❄️ *Tough Day:* ${biggestLoser} (${loserStats.wins}W-${mostLosses}L)\n`;
+        // Worst performer (lowest score) - same scoring logic in reverse
+        if (playerScores.length > 0) {
+            const worst = playerScores[playerScores.length - 1];
+            const hasUniqueWorst = playerScores.length === 1 ||
+                worst.score < playerScores[playerScores.length - 2].score;
+
+            // Only show if it's a different person than Player of the Day and they have a negative or very low score
+            if (hasUniqueWorst && worst.name !== playerOfTheDay && worst.score <= 1) {
+                shareText += `❄️ *Loser of the Day:* ${worst.name} (${worst.wins}W-${worst.losses}L`;
+                if (worst.mvps > 0) {
+                    shareText += `, ${worst.mvps} MVP${worst.mvps !== 1 ? 's' : ''}`;
+                }
+                shareText += `)\n`;
+            }
         }
 
-        if (mvpKing && mostMVPs > 0) {
-            shareText += `👑 *MVP Leader:* ${mvpKing} (${mostMVPs} MVP${mostMVPs !== 1 ? 's' : ''})\n`;
+        // MVP leader - only show if different from Player of the Day
+        const mvpLeaders = playerScores
+            .filter(p => p.mvps > 0)
+            .sort((a, b) => {
+                if (a.mvps !== b.mvps) return b.mvps - a.mvps;
+                return b.wins - a.wins;
+            });
+
+        if (mvpLeaders.length > 0) {
+            const mvpKing = mvpLeaders[0];
+            const hasUniqueMvpLeader = mvpLeaders.length === 1 ||
+                mvpKing.mvps > mvpLeaders[1].mvps;
+
+            // Only show MVP leader if it's not the same as Player of the Day
+            if (hasUniqueMvpLeader && mvpKing.name !== playerOfTheDay) {
+                shareText += `👑 *MVP Leader:* ${mvpKing.name} (${mvpKing.mvps} MVP${mvpKing.mvps !== 1 ? 's' : ''})\n`;
+            }
         }
 
         shareText += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
-        // Second pass: format each game
+        // Second pass: format each game with fixed column width
         matchLogs.forEach((log, index) => {
             const details = log.details || {};
             const scoreA = parseInt(details.scoreA) || 0;
@@ -3571,26 +3606,42 @@ export default function App() {
             // Game header
             shareText += `*Game ${index + 1}* (${matchTime})\n`;
 
-            // Score line with indicators
+            // Team names aligned to columns with score
             const teamAIndicator = teamAWon ? '🟢' : teamBWon ? '🔴' : '🤝';
             const teamBIndicator = teamBWon ? '🟢' : teamAWon ? '🔴' : '🤝';
 
-            shareText += `Team A ${teamAIndicator} *${scoreA}* - *${scoreB}* Team B ${teamBIndicator}\n\n`;
+            const teamAHeader = formatColumn(`Team A ${teamAIndicator} ${scoreA}`);
+            const teamBHeader = `Team B ${teamBIndicator} ${scoreB}`;
 
-            // Team A players
-            shareText += `🔵 *Team A:*\n`;
-            teamA.forEach(player => {
-                const playerName = typeof player === 'string' ? player : player.name || 'Player';
-                const mvpIndicator = details.mvp === playerName ? ' 👑' : '';
-                shareText += `   • ${playerName}${mvpIndicator}\n`;
-            });
+            shareText += `${teamAHeader}│ ${teamBHeader}\n\n`;
 
-            shareText += `\n🟠 *Team B:*\n`;
-            teamB.forEach(player => {
-                const playerName = typeof player === 'string' ? player : player.name || 'Player';
-                const mvpIndicator = details.mvp === playerName ? ' 👑' : '';
-                shareText += `   • ${playerName}${mvpIndicator}\n`;
-            });
+            // Team rosters side by side with fixed column width
+            const maxPlayers = Math.max(teamA.length, teamB.length);
+
+            for (let i = 0; i < maxPlayers; i++) {
+                // Get player names or empty string if no player at this position
+                let playerA = '';
+                let playerB = '';
+
+                if (i < teamA.length) {
+                    playerA = typeof teamA[i] === 'string' ? teamA[i] : teamA[i].name || 'Player';
+                }
+
+                if (i < teamB.length) {
+                    playerB = typeof teamB[i] === 'string' ? teamB[i] : teamB[i].name || 'Player';
+                }
+
+                // Check for MVP
+                const mvpA = (playerA && details.mvp === playerA) ? ' 👑' : '';
+                const mvpB = (playerB && details.mvp === playerB) ? ' 👑' : '';
+
+                // Format with fixed column width and truncation
+                const leftColumnContent = playerA + mvpA;
+                const leftColumn = formatColumn(leftColumnContent);
+                const rightColumn = playerB + mvpB;
+
+                shareText += `${leftColumn}│ ${rightColumn}\n`;
+            }
 
             shareText += `\n`;
         });

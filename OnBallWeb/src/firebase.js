@@ -2,12 +2,7 @@ import { initializeApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-
-console.log("Environment check:", {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID
-});
+import { log, logWarn, logError } from "@shared/utils/logger";
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyADwXaCiAs1Bz_gHrSHwnzH4nYu5ogctf0",
@@ -17,8 +12,6 @@ const firebaseConfig = {
     messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "698253006350",
     appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:698253006350:web:ddb9e7e799c034b61c8e5f",
 };
-
-console.log("Final Firebase config:", firebaseConfig);
 
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 
