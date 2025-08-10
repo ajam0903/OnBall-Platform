@@ -9,5 +9,28 @@ export default defineConfig({
             '@shared/firebase/firebase': path.resolve(__dirname, './src/firebase.js'),
             '@shared': path.resolve(__dirname, '../shared')
         }
+    },
+    build: {
+        rollupOptions: {
+            // Don't externalize these modules
+            external: [],
+            output: {
+                globals: {}
+            }
+        }
+    },
+    optimizeDeps: {
+        include: [
+            'firebase/app',
+            'firebase/auth',
+            'firebase/firestore',
+            'firebase/storage'
+        ]
+    },
+    // Ensure Vite can resolve shared dependencies
+    server: {
+        fs: {
+            allow: ['..']
+        }
     }
 })
