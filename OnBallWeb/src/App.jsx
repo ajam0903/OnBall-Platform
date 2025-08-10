@@ -31,7 +31,7 @@ import {
 } from "firebase/auth";
 import ErrorBoundary from '@shared/components/ErrorBoundary';
 import LogTab from "./components/LogTab";
-import logActivity from "@shared/utils/logActivity";
+import logActivity from "./utils/logActivity";
 import { ensureSchemaExists } from "@shared/utils/schemaMigration";
 import BeltsTab from "./components/BeltsTab";
 import PlayerBeltIcons from "./components/PlayerBeltIcons";

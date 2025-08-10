@@ -3,7 +3,7 @@ import { getFirestore, collection, doc, getDoc, setDoc, query, where, getDocs, d
 import { DarkContainer, StyledButton, StyledInput } from "../components/UIComponents";
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "@shared/firebase/firebase";
-import logActivity from "@shared/utils/logActivity";
+import logActivity from "../utils/logActivity";
 
 const db = getFirestore();
 
