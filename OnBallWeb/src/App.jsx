@@ -566,22 +566,18 @@ export default function App() {
     // Updated local function that works in both development and production
     const generateBalancedTeams = async () => {
         log("Starting generateBalancedTeams...");
-
         if (!currentLeagueId) {
             console.error("No currentLeagueId set");
             return;
         }
-
         const hasUnsavedScores = scores.some(score =>
             score && (score.a || score.b) && !score.processed
         );
-
         if (hasUnsavedScores && hasGeneratedTeams) {
             setPendingTabChange('generate-teams');
             setShowUnsavedModal(true);
             return;
         }
-
         try {
             log("Using local balanced team generation...");
 
@@ -593,29 +589,23 @@ export default function App() {
                 return;
             }
 
-            // Use the algorithm function
             const result = balanceTeamsAlgorithm(activePlayers, teamSize, calculatePlayerScore);
 
             const generatedTeams = result.teams;
             const generatedMatchups = result.matchups;
-
             setTeams(generatedTeams);
             setMatchups(generatedMatchups);
             setHasPendingMatchups(false);
             setHasGeneratedTeams(true);
             setTeamGenerationMethod('balanced');
 
-            // Create MVP votes and scores arrays based on matchup count
             const newMvpVotes = Array(generatedMatchups.length).fill("");
             const newScores = Array(generatedMatchups.length).fill({ a: "", b: "" });
-
             setMvpVotes(newMvpVotes);
             setScores(newScores);
 
-            // Update Firestore
             const docRef = doc(db, "leagues", currentLeagueId, "sets", currentSet);
             const docSnap = await getDoc(docRef);
-
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 const firestoreData = prepareDataForFirestore({
@@ -628,7 +618,6 @@ export default function App() {
                 });
                 await firestoreSetDoc(docRef, firestoreData);
             }
-
             await logActivity(
                 db,
                 currentLeagueId,
@@ -642,16 +631,41 @@ export default function App() {
                 user,
                 false
             );
-
             setToastMessage("⚖️ Balanced teams generated!");
             setTimeout(() => setToastMessage(""), 1000);
-
         } catch (error) {
             console.error("Error in local balanced team generation:", error);
             alert("An error occurred while generating teams. Check the console for details.");
         }
     };
 
+    // Add this temporary function to clear preferences
+    const clearUserPreferences = async () => {
+        if (!user || !currentLeagueId) return;
+
+        try {
+            const docRef = doc(db, "leagues", currentLeagueId, "userPreferences", user.uid);
+            await setDoc(docRef, { playerPreferences: {} });
+
+            setUserPlayerPreferences({
+                [user.uid]: {}
+            });
+
+            // Also update local player state
+            const updatedPlayers = players.map(player => ({
+                ...player,
+                active: false
+            }));
+            setPlayers(updatedPlayers);
+
+            console.log("User preferences cleared!");
+        } catch (error) {
+            console.error("Error clearing preferences:", error);
+        }
+    };
+
+    // Temporarily expose this function
+    window.clearUserPreferences = clearUserPreferences;
 
 
     const calculateLeaderboard = async () => {
@@ -2845,17 +2859,6 @@ export default function App() {
                         [user.uid]: prefs
                     });
 
-                    // If we have players but they don't have the right active states, update them
-                    if (players.length > 0) {
-                        log("Updating", players.length, "players with preferences");
-                        const updatedPlayers = players.map(player => ({
-                            ...player,
-                            active: prefs[player.name] || false
-                        }));
-                        const activePlayers = updatedPlayers.filter(p => p.active).map(p => p.name);
-                        log("Setting these players to active:", activePlayers);
-                        setPlayers(updatedPlayers);
-                    }
                 } else {
                     log("No preferences document found, initializing empty");
                     // Initialize empty preferences for this user, clearing any previous data
